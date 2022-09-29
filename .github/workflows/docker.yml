@@ -1,0 +1,49 @@
+name: Build & push
+on: [ push, pull_request ]
+
+jobs:
+  build:
+    # Only run on PRs if the source branch is on someone else's repo
+    if: ${{ github.event_name != 'pull_request' || github.repository != github.event.pull_request.head.repo.full_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v3
+      - name: 🔧 Setup Go 1.19
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.19'
+      - name: 📦 Download dependencies
+        run: go get
+      - name: 🛠 Build binary
+        run: CGO_ENABLED=1 GOOS=linux go build -ldflags "-s -w" -o disneystats
+      - name: 📤 Upload artifact
+        uses: actions/upload-artifact@master
+        with:
+          name: disneystats
+          path: ./disneystats
+  build-image:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/main'
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v3
+      - name: 🐋 Build Docker image
+        run: docker build -t ghcr.io/romitou/disneystats:latest .
+  push-image:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v3
+      - name: 🐋 Build Docker image
+        run: docker build -t ghcr.io/romitou/disneystats:latest .
+      - name: 🔐 Log in to registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: 📤 Push image
+        run: docker push ghcr.io/romitou/disneystats:latest
