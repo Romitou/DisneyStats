@@ -87,7 +87,7 @@ func UpdateWaitTimes() {
 		}
 
 		var attractionWaitTime models.AttractionWaitTime
-		err = database.GetDatabase().Debug().Where(&models.AttractionWaitTime{
+		err = database.GetDatabase().Where(&models.AttractionWaitTime{
 			AttractionID: attraction.ID,
 		}).Order("time DESC").First(&attractionWaitTime).Error
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
