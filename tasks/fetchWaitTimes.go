@@ -43,7 +43,7 @@ func (e WaitTimeEntity) WaitMinsInt() (int16, error) {
 	return int16(atoi), nil
 }
 
-func fetchWaitTimes() []WaitTimeEntity {
+func FetchWaitTimes() []WaitTimeEntity {
 	request, err := http.NewRequest("GET", WaitTimesEndpoint, nil)
 	if err != nil {
 		log.Println(err)
@@ -74,7 +74,7 @@ func fetchWaitTimes() []WaitTimeEntity {
 }
 
 func UpdateWaitTimes() {
-	waitTimes := fetchWaitTimes()
+	waitTimes := FetchWaitTimes()
 	now := time.Now().Unix()
 
 	for i := range waitTimes {

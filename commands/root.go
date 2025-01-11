@@ -6,17 +6,17 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/romitou/disneystats/database"
 	"github.com/romitou/disneystats/database/models"
+	"github.com/romitou/disneystats/tasks"
 	"github.com/spf13/cobra"
 	"log"
 	"os"
-	"time"
 )
 
 type WaitTime struct {
 	AttractionName string            `json:"attractionName"`
 	Park           models.DisneyPark `json:"park"`
 	Status         string            `json:"status"`
-	SingleRider    int16             `json:"singleRider"`
+	SingleRider    int16             `json:"singleRider,omitempty"`
 	WaitTime       int16             `json:"waitTime"`
 }
 
@@ -32,24 +32,37 @@ var DisneyStats = &cobra.Command{
 
 		r := gin.Default()
 		r.GET("/wait-times", func(c *gin.Context) {
-
-			var attractions []models.Attraction
-			database.GetDatabase().Model(&models.Attraction{}).Find(&attractions)
+			apiWaitTimes := tasks.FetchWaitTimes()
 
 			var waitTimes []WaitTime
-			for _, attraction := range attractions {
-				var attractionWaitTime models.AttractionWaitTime
-				database.GetDatabase().Model(&models.AttractionWaitTime{}).Where("attraction_id = ?", attraction.ID).Last(&attractionWaitTime)
-				// Si le temps entre la dernière mise à jour et maintenant est supérieur à 1 jour, on ne l'affiche pas
-				if attractionWaitTime.Status == "" || (time.Now().Unix()-attractionWaitTime.Time) > 86400 {
+			for _, waitTime := range apiWaitTimes {
+				var attraction models.Attraction
+				database.GetDatabase().Model(&models.Attraction{}).Where("entity_id = ?", waitTime.EntityID).First(&attraction)
+				if attraction.ID == 0 {
 					continue
 				}
+
+				attractionWaitTime, err := waitTime.WaitMinsInt()
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+
+				var singleRider int16
+				if waitTime.SingleRider.IsAvailable {
+					singleRider, err = waitTime.SingleRider.WaitMinsInt()
+					if err != nil {
+						singleRider = 0
+						continue
+					}
+				}
+
 				waitTimes = append(waitTimes, WaitTime{
 					AttractionName: attraction.Name,
 					Park:           attraction.ParkID,
-					Status:         attractionWaitTime.Status,
-					SingleRider:    attractionWaitTime.SingleRider,
-					WaitTime:       attractionWaitTime.WaitTime,
+					Status:         waitTime.Status,
+					SingleRider:    singleRider,
+					WaitTime:       attractionWaitTime,
 				})
 			}
 
