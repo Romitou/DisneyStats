@@ -32,13 +32,30 @@ var DisneyStats = &cobra.Command{
 
 		r := gin.Default()
 		r.GET("/wait-times", func(c *gin.Context) {
+			var attractions []models.Attraction
+			database.GetDatabase().Model(&models.Attraction{}).Where("displayed = true").Find(&attractions)
+
 			apiWaitTimes := tasks.FetchWaitTimes()
 
-			var waitTimes []WaitTime
-			for _, waitTime := range apiWaitTimes {
-				var attraction models.Attraction
-				database.GetDatabase().Model(&models.Attraction{}).Where("entity_id = ?", waitTime.EntityID).First(&attraction)
-				if attraction.ID == 0 {
+			waitTimes := make([]WaitTime, 0, len(attractions))
+
+			for _, attraction := range attractions {
+				var waitTime tasks.WaitTimeEntity
+				for _, apiWaitTime := range apiWaitTimes {
+					if apiWaitTime.EntityID == attraction.EntityID {
+						waitTime = apiWaitTime
+						break
+					}
+				}
+
+				if waitTime.EntityID == "" {
+					waitTimes = append(waitTimes, WaitTime{
+						AttractionName: attraction.Name,
+						Park:           attraction.ParkID,
+						Status:         "DOWN",
+						SingleRider:    0,
+						WaitTime:       0,
+					})
 					continue
 				}
 

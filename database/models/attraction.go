@@ -9,8 +9,9 @@ const (
 )
 
 type Attraction struct {
-	ID       uint `gorm:"primaryKey"`
-	EntityID string
-	Name     string
-	ParkID   DisneyPark
+	ID        uint `gorm:"primaryKey"`
+	EntityID  string
+	Name      string
+	ParkID    DisneyPark
+	Displayed bool
 }
